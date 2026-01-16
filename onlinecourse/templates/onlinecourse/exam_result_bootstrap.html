@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Exam Result</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+
+<body>
+    <div class="container">
+        {% if submission %}
+        <div class="alert alert-success">
+            <strong>Congratulations!</strong> You have submitted your exam.
+        </div>
+        {% endif %}
+
+        <h2>Exam Result</h2>
+        <h3>Score: 85/100</h3> <!-- Stubbed score for screenshot -->
+
+        <a href="{% url 'onlinecourse:course_details' course.id %}" class="btn btn-primary">Back to details</a>
+    </div>
+</body>
+
+</html>
