@@ -16,9 +16,34 @@
         {% endif %}
 
         <h2>Exam Result</h2>
-        <h3>Score: 85/100</h3> <!-- Stubbed score for screenshot -->
+        <h3>Score: {{ grade }} / {{ possible }}</h3>
 
-        <a href="{% url 'onlinecourse:course_details' course.id %}" class="btn btn-primary">Back to details</a>
+        <div class="card-columns-vertical">
+            {% for question in course.question_set.all %}
+            <div class="card mt-1">
+                <div class="card-header">
+                    <h5>{{ question.content }}</h5>
+                </div>
+                <div class="card-body">
+                    {% for choice in question.choice_set.all %}
+                    <div class="form-check">
+                        {% if choice in submission.choices.all and choice.is_correct %}
+                        <span class="text-success">{{ choice.content }} (Correct)</span>
+                        {% elif choice in submission.choices.all and not choice.is_correct %}
+                        <span class="text-danger">{{ choice.content }} (Incorrect)</span>
+                        {% elif choice.is_correct %}
+                        <span class="text-success">{{ choice.content }} (Correct Answer)</span>
+                        {% else %}
+                        <span>{{ choice.content }}</span>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <a href="{% url 'onlinecourse:course_details' course.id %}" class="btn btn-primary mt-3">Back to details</a>
     </div>
 </body>
 

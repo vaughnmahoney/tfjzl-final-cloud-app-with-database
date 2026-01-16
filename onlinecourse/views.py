@@ -16,6 +16,7 @@ class CourseDetailsView(generic.DetailView):
     template_name = 'onlinecourse/course_details_bootstrap.html'
 
 def submit(request, course_id):
+    model = Course
     course = get_object_or_404(Course, pk=course_id)
     if request.method == 'POST':
         submission = Submission(enrollment=Enrollment.objects.filter(course=course).first())
@@ -32,11 +33,26 @@ def submit(request, course_id):
                     pass
         
         submission.save()
-        return render(request, 'onlinecourse/exam_result_bootstrap.html', {'course': course, 'submission': submission})
+        return render(request, 'onlinecourse/exam_result_bootstrap.html', {'course': course, 'submission': submission, 'test': True}) \
+            if not submission.pk else redirect('onlinecourse:show_exam_result', course_id=course.id, submission_id=submission.id)
     return render(request, 'onlinecourse/course_details_bootstrap.html', {'course': course})
 
 def show_exam_result(request, course_id, submission_id):
     context = {}
-    context['course'] = get_object_or_404(Course, pk=course_id)
-    context['submission'] = get_object_or_404(Submission, pk=submission_id)
+    course = get_object_or_404(Course, pk=course_id)
+    submission = get_object_or_404(Submission, pk=submission_id)
+    context['course'] = course
+    context['submission'] = submission
+    
+    # Calculate score
+    grade = 0
+    possible_grade = 0
+    for question in course.question_set.all():
+        possible_grade += question.grade
+        selected_ids = [c.id for c in submission.choices.filter(question=question)]
+        if question.is_get_score(selected_ids):
+            grade += question.grade
+            
+    context['grade'] = grade
+    context['possible'] = possible_grade
     return render(request, 'onlinecourse/exam_result_bootstrap.html', context)
