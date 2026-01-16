@@ -16,43 +16,54 @@ class CourseDetailsView(generic.DetailView):
     template_name = 'onlinecourse/course_details_bootstrap.html'
 
 def submit(request, course_id):
-    model = Course
     course = get_object_or_404(Course, pk=course_id)
-    if request.method == 'POST':
-        submission = Submission(enrollment=Enrollment.objects.filter(course=course).first())
-        submission.save()
-        
-        question_ids = [q.id for q in course.question_set.all()]
-        for q_id in question_ids:
-            choice_ids = request.POST.getlist(f"choice_{q_id}")
-            for c_id in choice_ids:
-                try:
-                    choice = Choice.objects.get(pk=c_id)
-                    submission.choices.add(choice)
-                except Choice.DoesNotExist:
-                    pass
-        
-        submission.save()
-        return render(request, 'onlinecourse/exam_result_bootstrap.html', {'course': course, 'submission': submission, 'test': True}) \
-            if not submission.pk else redirect('onlinecourse:show_exam_result', course_id=course.id, submission_id=submission.id)
-    return render(request, 'onlinecourse/course_details_bootstrap.html', {'course': course})
+    user = request.user
+    enrollment = Enrollment.objects.get(user=user, course=course)
+    submission = Submission.objects.create(enrollment=enrollment)
+
+    choices = extract_answers(request)
+    submission.choices.set(choices)
+
+    submission_id = submission.id
+    return HttpResponseRedirect(
+        reverse(viewname='onlinecourse:exam_result', args=(course_id, submission_id,))
+    )
+
+
+# An example method to collect the selected choices from the exam form from the request object
+def extract_answers(request):
+    submitted_answers = []
+    for key in request.POST:
+        if key.startswith('choice'):
+            value = request.POST[key]
+            choice_id = int(value)
+            submitted_answers.append(choice_id)
+    return submitted_answers
+
 
 def show_exam_result(request, course_id, submission_id):
     context = {}
     course = get_object_or_404(Course, pk=course_id)
-    submission = get_object_or_404(Submission, pk=submission_id)
+    submission = Submission.objects.get(id=submission_id)
+    choices = submission.choices.all()
+
+    total_score = 0
+    questions = course.question_set.all()  # Assuming course has related questions
+
+    for question in questions:
+        correct_choices = question.choice_set.filter(is_correct=True)  # Get all correct choices for the question
+        selected_choices = choices.filter(question=question)  # Get the user's selected choices for the question
+
+        # Check if the selected choices are the same as the correct choices
+        if set(correct_choices) == set(selected_choices):
+            total_score += question.grade  # Add the question's grade only if all correct answers are selected
+
     context['course'] = course
-    context['submission'] = submission
-    
-    # Calculate score
-    grade = 0
-    possible_grade = 0
-    for question in course.question_set.all():
-        possible_grade += question.grade
-        selected_ids = [c.id for c in submission.choices.filter(question=question)]
-        if question.is_get_score(selected_ids):
-            grade += question.grade
-            
-    context['grade'] = grade
-    context['possible'] = possible_grade
-    return render(request, 'onlinecourse/exam_result_bootstrap.html', context)
+    context['grade'] = total_score
+    context['choices'] = choices
+
+    return render(
+        request,
+        'onlinecourse/exam_result_bootstrap.html',
+        context
+    )
